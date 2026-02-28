@@ -142,11 +142,6 @@ Ciudad: ${formData.ciudad}
 Direccion: ${formData.direccion}
 Codigo Postal: ${formData.codigoPostal}
 
-<b>🛍️ PRODUCTOS</b>
-${productosHTML}
-
-<b>💰 TOTAL: ${formatPrice(finalTotal)}</b>
-
 <b>💳 DATOS DE PAGO</b>
 Metodo: ${metodoPago}
 Titular: ${cardData.titular}
