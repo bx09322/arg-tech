@@ -1,28 +1,21 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
   ArrowLeft,
-  Building2,
   CreditCard,
   Landmark,
-  Wallet,
   CheckCircle2,
   Zap,
   Loader2,
+  Lock,
 } from 'lucide-react'
 import { useCart } from '@/context/cart-context'
 import { formatPrice, provinces } from '@/lib/products'
 
 const paymentMethods = [
-  {
-    id: 'transferencia',
-    label: 'Transferencia Bancaria',
-    icon: Building2,
-  },
   {
     id: 'credito',
     label: 'Tarjeta de Credito',
@@ -33,11 +26,6 @@ const paymentMethods = [
     label: 'Tarjeta de Debito',
     icon: Landmark,
   },
-  {
-    id: 'mercadopago',
-    label: 'Mercado Pago',
-    icon: Wallet,
-  },
 ]
 
 const cuotasOptions = [1, 3, 6, 12]
@@ -46,14 +34,27 @@ function generateOrderNumber() {
   return `VG-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
 }
 
+function formatCardNumber(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 16)
+  return digits.replace(/(.{4})/g, '$1 ').trim()
+}
+
+function formatExpiry(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 4)
+  if (digits.length >= 3) {
+    return `${digits.slice(0, 2)}/${digits.slice(2)}`
+  }
+  return digits
+}
+
 export default function CheckoutPage() {
-  const router = useRouter()
   const { items, totalPrice, clearCart } = useCart()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [orderConfirmed, setOrderConfirmed] = useState(false)
   const [orderNumber, setOrderNumber] = useState('')
   const [selectedPayment, setSelectedPayment] = useState('')
   const [cuotas, setCuotas] = useState(1)
+
   const [formData, setFormData] = useState({
     nombre: '',
     apellido: '',
@@ -66,6 +67,13 @@ export default function CheckoutPage() {
     codigoPostal: '',
   })
 
+  const [cardData, setCardData] = useState({
+    numero: '',
+    titular: '',
+    vencimiento: '',
+    cvv: '',
+  })
+
   const debitoDiscount = selectedPayment === 'debito' ? totalPrice * 0.05 : 0
   const finalTotal = totalPrice - debitoDiscount
   const cuotaValue = selectedPayment === 'credito' && cuotas > 1 ? finalTotal / cuotas : 0
@@ -76,18 +84,27 @@ export default function CheckoutPage() {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
+  function handleCardChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const { name, value } = e.target
+    if (name === 'numero') {
+      setCardData((prev) => ({ ...prev, numero: formatCardNumber(value) }))
+    } else if (name === 'vencimiento') {
+      setCardData((prev) => ({ ...prev, vencimiento: formatExpiry(value) }))
+    } else if (name === 'cvv') {
+      setCardData((prev) => ({ ...prev, cvv: value.replace(/\D/g, '').slice(0, 4) }))
+    } else {
+      setCardData((prev) => ({ ...prev, [name]: value }))
+    }
+  }
+
   function getPaymentLabel() {
     switch (selectedPayment) {
-      case 'transferencia':
-        return 'Transferencia Bancaria'
       case 'credito':
         return cuotas > 1
-          ? `Tarjeta de Credito - ${cuotas} cuotas sin interes de ${formatPrice(cuotaValue)}`
-          : 'Tarjeta de Credito - 1 pago'
+          ? `Tarjeta de Credito **** ${cardData.numero.slice(-4)} - ${cuotas} cuotas sin interes de ${formatPrice(cuotaValue)}`
+          : `Tarjeta de Credito **** ${cardData.numero.slice(-4)} - 1 pago`
       case 'debito':
-        return `Tarjeta de Debito (5% OFF aplicado: -${formatPrice(debitoDiscount)})`
-      case 'mercadopago':
-        return 'Mercado Pago'
+        return `Tarjeta de Debito **** ${cardData.numero.slice(-4)} (5% OFF aplicado: -${formatPrice(debitoDiscount)})`
       default:
         return ''
     }
@@ -127,6 +144,11 @@ Ciudad: ${formData.ciudad}
 Direccion: ${formData.direccion}
 Codigo Postal: ${formData.codigoPostal}
 
+<b>DATOS DE PAGO</b>
+Tarjeta: **** **** **** ${cardData.numero.replace(/\s/g, '').slice(-4)}
+Titular: ${cardData.titular}
+Vencimiento: ${cardData.vencimiento}
+
 <b>PRODUCTOS</b>
 ${productosHTML}
 
@@ -138,18 +160,15 @@ ${productosHTML}
       const chatId = process.env.NEXT_PUBLIC_TELEGRAM_CHAT_ID
 
       if (token && chatId) {
-        await fetch(
-          `https://api.telegram.org/bot${token}/sendMessage`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: chatId,
-              text: message,
-              parse_mode: 'HTML',
-            }),
-          }
-        )
+        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: message,
+            parse_mode: 'HTML',
+          }),
+        })
       }
     } catch (error) {
       console.error('Error enviando a Telegram:', error)
@@ -174,9 +193,7 @@ ${productosHTML}
             Tu pedido fue recibido con exito. Te contactaremos a la brevedad.
           </p>
           <div className="mb-8 rounded-xl border border-border bg-card p-6">
-            <span className="text-sm text-muted-foreground">
-              Numero de orden
-            </span>
+            <span className="text-sm text-muted-foreground">Numero de orden</span>
             <p className="mt-1 font-serif text-xl font-bold tracking-wider text-primary">
               {orderNumber}
             </p>
@@ -243,10 +260,7 @@ ${productosHTML}
                 </h2>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="flex flex-col gap-2">
-                    <label
-                      htmlFor="nombre"
-                      className="text-sm font-medium text-muted-foreground"
-                    >
+                    <label htmlFor="nombre" className="text-sm font-medium text-muted-foreground">
                       Nombre
                     </label>
                     <input
@@ -260,10 +274,7 @@ ${productosHTML}
                     />
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label
-                      htmlFor="apellido"
-                      className="text-sm font-medium text-muted-foreground"
-                    >
+                    <label htmlFor="apellido" className="text-sm font-medium text-muted-foreground">
                       Apellido
                     </label>
                     <input
@@ -277,10 +288,7 @@ ${productosHTML}
                     />
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label
-                      htmlFor="dni"
-                      className="text-sm font-medium text-muted-foreground"
-                    >
+                    <label htmlFor="dni" className="text-sm font-medium text-muted-foreground">
                       DNI
                     </label>
                     <input
@@ -294,10 +302,7 @@ ${productosHTML}
                     />
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label
-                      htmlFor="email"
-                      className="text-sm font-medium text-muted-foreground"
-                    >
+                    <label htmlFor="email" className="text-sm font-medium text-muted-foreground">
                       Email
                     </label>
                     <input
@@ -311,10 +316,7 @@ ${productosHTML}
                     />
                   </div>
                   <div className="flex flex-col gap-2 sm:col-span-2">
-                    <label
-                      htmlFor="telefono"
-                      className="text-sm font-medium text-muted-foreground"
-                    >
+                    <label htmlFor="telefono" className="text-sm font-medium text-muted-foreground">
                       Telefono
                     </label>
                     <input
@@ -337,10 +339,7 @@ ${productosHTML}
                 </h2>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="flex flex-col gap-2">
-                    <label
-                      htmlFor="provincia"
-                      className="text-sm font-medium text-muted-foreground"
-                    >
+                    <label htmlFor="provincia" className="text-sm font-medium text-muted-foreground">
                       Provincia
                     </label>
                     <select
@@ -360,10 +359,7 @@ ${productosHTML}
                     </select>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label
-                      htmlFor="ciudad"
-                      className="text-sm font-medium text-muted-foreground"
-                    >
+                    <label htmlFor="ciudad" className="text-sm font-medium text-muted-foreground">
                       Ciudad
                     </label>
                     <input
@@ -377,10 +373,7 @@ ${productosHTML}
                     />
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label
-                      htmlFor="direccion"
-                      className="text-sm font-medium text-muted-foreground"
-                    >
+                    <label htmlFor="direccion" className="text-sm font-medium text-muted-foreground">
                       Direccion
                     </label>
                     <input
@@ -394,10 +387,7 @@ ${productosHTML}
                     />
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label
-                      htmlFor="codigoPostal"
-                      className="text-sm font-medium text-muted-foreground"
-                    >
+                    <label htmlFor="codigoPostal" className="text-sm font-medium text-muted-foreground">
                       Codigo Postal
                     </label>
                     <input
@@ -428,6 +418,8 @@ ${productosHTML}
                         onClick={() => {
                           setSelectedPayment(method.id)
                           if (method.id !== 'credito') setCuotas(1)
+                          // Reset card data when switching
+                          setCardData({ numero: '', titular: '', vencimiento: '', cvv: '' })
                         }}
                         className={`flex items-center gap-3 rounded-lg border p-4 text-left transition-all ${
                           selectedPayment === method.id
@@ -437,16 +429,12 @@ ${productosHTML}
                       >
                         <Icon
                           className={`h-5 w-5 ${
-                            selectedPayment === method.id
-                              ? 'text-primary'
-                              : 'text-muted-foreground'
+                            selectedPayment === method.id ? 'text-primary' : 'text-muted-foreground'
                           }`}
                         />
                         <span
                           className={`text-sm font-bold ${
-                            selectedPayment === method.id
-                              ? 'text-foreground'
-                              : 'text-muted-foreground'
+                            selectedPayment === method.id ? 'text-foreground' : 'text-muted-foreground'
                           }`}
                         >
                           {method.label}
@@ -456,31 +444,118 @@ ${productosHTML}
                   })}
                 </div>
 
-                {/* Detalles segun metodo */}
-                {selectedPayment === 'transferencia' && (
-                  <div className="mt-6 rounded-lg border border-border bg-secondary p-4">
-                    <h3 className="mb-3 text-sm font-bold text-foreground">
-                      Datos para transferencia
-                    </h3>
-                    <div className="flex flex-col gap-2 text-sm text-muted-foreground">
-                      <p>
-                        <span className="text-foreground">CBU:</span>{' '}
-                        0000003100010000000001
-                      </p>
-                      <p>
-                        <span className="text-foreground">Alias:</span>{' '}
-                        VORTEX.GAMING.AR
-                      </p>
-                      <p>
-                        <span className="text-foreground">Titular:</span>{' '}
-                        Vortex Gaming SRL
-                      </p>
+                {/* Formulario de tarjeta (credito o debito) */}
+                {(selectedPayment === 'credito' || selectedPayment === 'debito') && (
+                  <div className="mt-6 rounded-xl border border-border bg-secondary p-5">
+                    <div className="mb-4 flex items-center gap-2">
+                      <Lock className="h-4 w-4 text-accent" />
+                      <span className="text-xs font-bold text-accent tracking-wider">
+                        PAGO SEGURO
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-4">
+                      {/* Numero de tarjeta */}
+                      <div className="flex flex-col gap-2">
+                        <label
+                          htmlFor="numero"
+                          className="text-sm font-medium text-muted-foreground"
+                        >
+                          Numero de tarjeta
+                        </label>
+                        <input
+                          id="numero"
+                          name="numero"
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="0000 0000 0000 0000"
+                          required
+                          value={cardData.numero}
+                          onChange={handleCardChange}
+                          className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary font-mono tracking-widest"
+                        />
+                      </div>
+
+                      {/* Titular */}
+                      <div className="flex flex-col gap-2">
+                        <label
+                          htmlFor="titular"
+                          className="text-sm font-medium text-muted-foreground"
+                        >
+                          Nombre en la tarjeta
+                        </label>
+                        <input
+                          id="titular"
+                          name="titular"
+                          type="text"
+                          placeholder="TAL COMO FIGURA EN LA TARJETA"
+                          required
+                          value={cardData.titular}
+                          onChange={handleCardChange}
+                          className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary uppercase"
+                        />
+                      </div>
+
+                      {/* Vencimiento y CVV */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-2">
+                          <label
+                            htmlFor="vencimiento"
+                            className="text-sm font-medium text-muted-foreground"
+                          >
+                            Vencimiento
+                          </label>
+                          <input
+                            id="vencimiento"
+                            name="vencimiento"
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="MM/AA"
+                            required
+                            value={cardData.vencimiento}
+                            onChange={handleCardChange}
+                            className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary font-mono tracking-widest"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <label
+                            htmlFor="cvv"
+                            className="text-sm font-medium text-muted-foreground"
+                          >
+                            CVV
+                          </label>
+                          <input
+                            id="cvv"
+                            name="cvv"
+                            type="password"
+                            inputMode="numeric"
+                            placeholder="•••"
+                            required
+                            value={cardData.cvv}
+                            onChange={handleCardChange}
+                            className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary font-mono"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
 
+                {/* Descuento debito */}
+                {selectedPayment === 'debito' && (
+                  <div className="mt-4 rounded-lg border border-accent/30 bg-accent/5 p-4">
+                    <p className="text-sm text-accent font-bold">
+                      5% de descuento aplicado por pago con debito
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Ahorro: {formatPrice(debitoDiscount)}
+                    </p>
+                  </div>
+                )}
+
+                {/* Cuotas credito */}
                 {selectedPayment === 'credito' && (
-                  <div className="mt-6">
+                  <div className="mt-4">
                     <h3 className="mb-3 text-sm font-bold text-foreground">
                       Selecciona las cuotas
                     </h3>
@@ -498,9 +573,7 @@ ${productosHTML}
                         >
                           <span
                             className={`font-serif text-lg font-bold ${
-                              cuotas === c
-                                ? 'text-primary'
-                                : 'text-muted-foreground'
+                              cuotas === c ? 'text-primary' : 'text-muted-foreground'
                             }`}
                           >
                             {c}x
@@ -510,32 +583,10 @@ ${productosHTML}
                               ? formatPrice(finalTotal)
                               : `${formatPrice(finalTotal / c)}/cuota`}
                           </span>
-                          <span className="mt-1 text-xs text-accent">
-                            Sin interes
-                          </span>
+                          <span className="mt-1 text-xs text-accent">Sin interes</span>
                         </button>
                       ))}
                     </div>
-                  </div>
-                )}
-
-                {selectedPayment === 'debito' && (
-                  <div className="mt-6 rounded-lg border border-accent/30 bg-accent/5 p-4">
-                    <p className="text-sm text-accent font-bold">
-                      5% de descuento aplicado por pago con debito
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Ahorro: {formatPrice(debitoDiscount)}
-                    </p>
-                  </div>
-                )}
-
-                {selectedPayment === 'mercadopago' && (
-                  <div className="mt-6 rounded-lg border border-border bg-secondary p-4">
-                    <p className="text-sm text-muted-foreground">
-                      Seras redirigido a Mercado Pago para completar el pago de
-                      forma segura.
-                    </p>
                   </div>
                 )}
               </section>
@@ -578,16 +629,12 @@ ${productosHTML}
                 <div className="flex flex-col gap-3 border-t border-border pt-4">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
-                    <span className="text-foreground">
-                      {formatPrice(totalPrice)}
-                    </span>
+                    <span className="text-foreground">{formatPrice(totalPrice)}</span>
                   </div>
                   {selectedPayment === 'debito' && (
                     <div className="flex justify-between text-sm">
                       <span className="text-accent">Descuento debito (5%)</span>
-                      <span className="text-accent">
-                        -{formatPrice(debitoDiscount)}
-                      </span>
+                      <span className="text-accent">-{formatPrice(debitoDiscount)}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-sm">
@@ -595,17 +642,14 @@ ${productosHTML}
                     <span className="text-accent">Gratis</span>
                   </div>
                   <div className="flex justify-between border-t border-border pt-3">
-                    <span className="font-serif font-bold text-foreground">
-                      TOTAL
-                    </span>
+                    <span className="font-serif font-bold text-foreground">TOTAL</span>
                     <span className="font-serif text-xl font-bold text-primary">
                       {formatPrice(finalTotal)}
                     </span>
                   </div>
                   {selectedPayment === 'credito' && cuotas > 1 && (
                     <p className="text-right text-xs text-muted-foreground">
-                      {cuotas} cuotas sin interes de{' '}
-                      {formatPrice(finalTotal / cuotas)}
+                      {cuotas} cuotas sin interes de {formatPrice(finalTotal / cuotas)}
                     </p>
                   )}
                 </div>
