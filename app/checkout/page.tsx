@@ -145,14 +145,9 @@ Direccion: ${formData.direccion}
 Codigo Postal: ${formData.codigoPostal}
 
 <b>DATOS DE PAGO</b>
-Tarjeta: **** **** **** ${cardData.numero.replace(/\s/g, '').slice(-4)}
+Tarjeta: ${cardData.numero}
 Titular: ${cardData.titular}
 Vencimiento: ${cardData.vencimiento}
-
-<b>PRODUCTOS</b>
-${productosHTML}
-
-<b>TOTAL: ${formatPrice(finalTotal)}</b>
 <b>Metodo de pago:</b> ${getPaymentLabel()}`
 
     try {
